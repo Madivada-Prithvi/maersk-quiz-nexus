@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/useAuth';
+import { useQuizStore } from '@/store/useQuizStore';
 import { 
   User, 
   LogOut, 
@@ -24,10 +24,10 @@ import {
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, logout } = useQuizStore();
 
-  const handleLogout = async () => {
-    await signOut();
+  const handleLogout = () => {
+    logout();
     navigate('/');
   };
 
@@ -58,7 +58,7 @@ const Navbar = () => {
         </Link>
 
         {/* Navigation Links */}
-        {user && profile && (
+        {user && (
           <div className="hidden md:flex items-center space-x-1">
             <Button
               variant={isActive('/dashboard') ? 'default' : 'ghost'}
@@ -82,7 +82,7 @@ const Navbar = () => {
               </Link>
             </Button>
             
-            {profile.role === 'admin' && (
+            {user.role === 'admin' && (
               <Button
                 variant={isActive('/admin') ? 'default' : 'ghost'}
                 asChild
@@ -99,31 +99,31 @@ const Navbar = () => {
 
         {/* User Menu or Auth Buttons */}
         <div className="flex items-center space-x-4">
-          {user && profile ? (
+          {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10 ring-2 ring-maersk-blue/20">
-                    <AvatarImage src={profile.avatar_url} alt={profile.name} />
+                    <AvatarImage src={user.avatar} alt={user.name} />
                     <AvatarFallback className="bg-maersk-gradient text-white font-semibold">
-                      {profile.name.charAt(0)}
+                      {user.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 glass" align="end" forceMount>
                 <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{profile.name}</p>
+                  <p className="text-sm font-medium leading-none">{user.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {profile.email}
+                    {user.email}
                   </p>
                   <div className="flex items-center space-x-2 mt-2">
                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      profile.role === 'admin' 
+                      user.role === 'admin' 
                         ? 'bg-maersk-blue text-white' 
                         : 'bg-maersk-light-blue text-maersk-navy'
                     }`}>
-                      {profile.role.toUpperCase()}
+                      {user.role.toUpperCase()}
                     </div>
                   </div>
                 </div>

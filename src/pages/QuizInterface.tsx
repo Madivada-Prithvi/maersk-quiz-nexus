@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { useQuizInterface } from '@/hooks/useQuizInterface';
+import { useQuizStore } from '@/store/useQuizStore';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, 
   ChevronRight, 
@@ -20,27 +21,32 @@ import {
 } from 'lucide-react';
 
 const QuizInterface = () => {
-  const {
-    currentQuiz,
-    currentQuestionIndex,
-    answers,
-    timeRemaining,
+  const { quizId } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { 
+    currentQuiz, 
+    currentQuestionIndex, 
+    answers, 
+    timeRemaining, 
     isQuizActive,
-    selectedAnswer,
-    showResults,
-    setShowResults,
-    setTimeRemaining,
-    handleAnswerSelect,
-    handleNext,
-    handleFinishQuiz,
-    calculateScore,
-    startNewQuiz,
-    navigate
-  } = useQuizInterface();
+    startQuiz, 
+    answerQuestion, 
+    nextQuestion, 
+    finishQuiz, 
+    setTimeRemaining 
+  } = useQuizStore();
 
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [showResults, setShowResults] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
+  useEffect(() => {
+    if (quizId && !isQuizActive) {
+      startQuiz(quizId);
+    }
+  }, [quizId, startQuiz, isQuizActive]);
 
   useEffect(() => {
     const updateWindowSize = () => {
@@ -60,8 +66,57 @@ const QuizInterface = () => {
     } else if (timeRemaining === 0 && isQuizActive) {
       handleFinishQuiz();
     }
-  }, [timeRemaining, isQuizActive, setTimeRemaining, handleFinishQuiz]);
+  }, [timeRemaining, isQuizActive, setTimeRemaining]);
 
+  useEffect(() => {
+    if (currentQuiz && answers[currentQuestionIndex] !== undefined) {
+      setSelectedAnswer(answers[currentQuestionIndex]);
+    } else {
+      setSelectedAnswer(null);
+    }
+  }, [currentQuestionIndex, answers, currentQuiz]);
+
+  const handleAnswerSelect = (answerIndex: number) => {
+    setSelectedAnswer(answerIndex);
+    answerQuestion(answerIndex);
+  };
+
+  const handleNext = () => {
+    if (currentQuiz && currentQuestionIndex < currentQuiz.questions.length - 1) {
+      nextQuestion();
+    } else {
+      handleFinishQuiz();
+    }
+  };
+
+  const handleFinishQuiz = () => {
+    finishQuiz();
+    setShowResults(true);
+    
+    const score = calculateScore();
+    const percentage = (score / (currentQuiz?.questions.length || 1)) * 100;
+    
+    if (percentage >= 80) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000);
+    }
+
+    toast({
+      title: "Quiz Completed!",
+      description: `You scored ${score}/${currentQuiz?.questions.length} (${Math.round(percentage)}%)`,
+    });
+  };
+
+  const calculateScore = () => {
+    if (!currentQuiz) return 0;
+    let score = 0;
+    currentQuiz.questions.forEach((question, index) => {
+      if (answers[index] === question.correctAnswer) {
+        score++;
+      }
+    });
+    return score;
+  };
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -149,7 +204,7 @@ const QuizInterface = () => {
             <Card className="glass-card text-center">
               <CardContent className="p-6">
                 <div className="text-3xl font-bold text-foreground mb-2">
-                  {formatTime(currentQuiz.time_limit - timeRemaining)}
+                  {formatTime(currentQuiz.timeLimit - timeRemaining)}
                 </div>
                 <p className="text-muted-foreground">Time Taken</p>
               </CardContent>
@@ -211,7 +266,7 @@ const QuizInterface = () => {
             <Button 
               onClick={() => {
                 setShowResults(false);
-                startNewQuiz();
+                startQuiz(currentQuiz.id);
               }}
               className="btn-hero"
             >

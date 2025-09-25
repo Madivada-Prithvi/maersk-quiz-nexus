@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/hooks/useAuth';
-import { useQuizData } from '@/hooks/useQuizData';
+import { useQuizStore } from '@/store/useQuizStore';
 import { 
   Play, 
   Clock, 
@@ -21,19 +20,18 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
-  const { quizzes, getUserResults } = useQuizData();
-  const userResults = getUserResults();
+  const { user, quizzes, results, getResultsByUser } = useQuizStore();
+  const userResults = user ? getResultsByUser(user.id) : [];
   
-  const publishedQuizzes = quizzes.filter(quiz => quiz.is_published);
+  const publishedQuizzes = quizzes.filter(quiz => quiz.isPublished);
   
   const stats = {
     totalQuizzes: publishedQuizzes.length,
     completedQuizzes: userResults.length,
     averageScore: userResults.length > 0 
-      ? Math.round(userResults.reduce((acc, result) => acc + (result.score / result.total_questions * 100), 0) / userResults.length)
+      ? Math.round(userResults.reduce((acc, result) => acc + (result.score / result.totalQuestions * 100), 0) / userResults.length)
       : 0,
-    totalTime: userResults.reduce((acc, result) => acc + result.time_spent, 0)
+    totalTime: userResults.reduce((acc, result) => acc + result.timeSpent, 0)
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -60,7 +58,7 @@ const Dashboard = () => {
           className="mb-8"
         >
           <h1 className="font-heading text-4xl font-bold gradient-text mb-2">
-            Welcome back, {profile?.name}!
+            Welcome back, {user?.name}!
           </h1>
           <p className="text-muted-foreground text-lg">
             Continue your learning journey with our latest quizzes
@@ -150,8 +148,8 @@ const Dashboard = () => {
               <CardContent>
                 <div className="space-y-4">
                   {userResults.slice(-3).reverse().map((result) => {
-                    const quiz = quizzes.find(q => q.id === result.quiz_id);
-                    const scorePercentage = (result.score / result.total_questions) * 100;
+                    const quiz = quizzes.find(q => q.id === result.quizId);
+                    const scorePercentage = (result.score / result.totalQuestions) * 100;
                     
                     return (
                       <div key={result.id} className="flex items-center justify-between p-4 bg-background/50 rounded-xl">
@@ -160,11 +158,11 @@ const Dashboard = () => {
                           <div className="flex items-center space-x-4 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                               <Target className="h-4 w-4" />
-                              <span>{result.score}/{result.total_questions}</span>
+                              <span>{result.score}/{result.totalQuestions}</span>
                             </div>
                             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                               <Timer className="h-4 w-4" />
-                              <span>{formatTime(result.time_spent)}</span>
+                              <span>{formatTime(result.timeSpent)}</span>
                             </div>
                           </div>
                         </div>
@@ -196,9 +194,9 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {publishedQuizzes.map((quiz, index) => {
-              const userResult = userResults.find(result => result.quiz_id === quiz.id);
+              const userResult = userResults.find(result => result.quizId === quiz.id);
               const isCompleted = !!userResult;
-              const scorePercentage = userResult ? (userResult.score / userResult.total_questions) * 100 : 0;
+              const scorePercentage = userResult ? (userResult.score / userResult.totalQuestions) * 100 : 0;
 
               return (
                 <motion.div
@@ -242,7 +240,7 @@ const Dashboard = () => {
                           </div>
                           <div className="flex items-center space-x-1">
                             <Clock className="h-4 w-4" />
-                            <span>{formatTime(quiz.time_limit)}</span>
+                            <span>{formatTime(quiz.timeLimit)}</span>
                           </div>
                         </div>
                       </div>
