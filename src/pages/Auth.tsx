@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useQuizStore } from '@/store/useQuizStore';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Mail, 
   Lock, 
@@ -27,7 +27,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const { login, isLoading } = useQuizStore();
+  const { signIn, signUp, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -44,12 +44,30 @@ const Auth = () => {
     }
 
     try {
-      await login(email, password);
+      let result;
+      if (isLogin) {
+        result = await signIn(email, password);
+      } else {
+        result = await signUp(email, password, name);
+      }
+
+      if (result.error) {
+        toast({
+          title: "Authentication Failed",
+          description: result.error.message || "Please check your credentials and try again",
+          variant: "destructive"
+        });
+        return;
+      }
+
       toast({
         title: "Welcome!",
-        description: `Successfully ${isLogin ? 'signed in' : 'registered'}`,
+        description: isLogin ? "Successfully signed in!" : "Account created! Please check your email to verify.",
       });
-      navigate('/dashboard');
+      
+      if (isLogin) {
+        navigate('/dashboard');
+      }
     } catch (error) {
       toast({
         title: "Authentication Failed",
@@ -183,9 +201,9 @@ const Auth = () => {
               <Button
                 type="submit"
                 className="w-full btn-hero"
-                disabled={isLoading}
+                disabled={loading}
               >
-                {isLoading ? (
+                {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     {isLogin ? 'Signing In...' : 'Creating Account...'}
