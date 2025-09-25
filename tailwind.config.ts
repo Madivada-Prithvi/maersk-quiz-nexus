@@ -13,12 +13,27 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        'heading': ['Bai Jamjuree', 'sans-serif'],
+        'body': ['Space Grotesk', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        
+        // Maersk Brand Colors
+        'maersk-navy': "hsl(var(--maersk-navy))",
+        'maersk-blue': "hsl(var(--maersk-blue))",
+        'maersk-light-blue': "hsl(var(--maersk-light-blue))",
+        'maersk-ice': "hsl(var(--maersk-ice))",
+        'maersk-dark-gray': "hsl(var(--maersk-dark-gray))",
+        'maersk-gray': "hsl(var(--maersk-gray))",
+        'maersk-light-gray': "hsl(var(--maersk-light-gray))",
+        'maersk-off-white': "hsl(var(--maersk-off-white))",
+        
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -57,6 +72,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        'maersk-gradient': 'var(--gradient-primary)',
+        'maersk-secondary-gradient': 'var(--gradient-secondary)',
+        'cosmic': 'var(--gradient-cosmic)',
       },
       borderRadius: {
         lg: "var(--radius)",
