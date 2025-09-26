@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { useQuizStore } from '@/store/useQuizStore';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   User, 
   LogOut, 
@@ -24,10 +24,10 @@ import {
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useQuizStore();
+  const { user, profile, signOut } = useAuth();
 
   const handleLogout = () => {
-    logout();
+    signOut();
     navigate('/');
   };
 
@@ -82,7 +82,7 @@ const Navbar = () => {
               </Link>
             </Button>
             
-            {user.role === 'admin' && (
+            {profile?.role === 'admin' && (
               <Button
                 variant={isActive('/admin') ? 'default' : 'ghost'}
                 asChild
@@ -103,30 +103,33 @@ const Navbar = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10 ring-2 ring-maersk-blue/20">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="bg-maersk-gradient text-white font-semibold">
-                      {user.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                   <Avatar className="h-10 w-10 ring-2 ring-maersk-blue/20">
+                     <AvatarImage 
+                       src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+                       alt={profile?.name || user.email}
+                     />
+                     <AvatarFallback className="bg-maersk-gradient text-white font-semibold">
+                       {(profile?.name || user.email).charAt(0).toUpperCase()}
+                     </AvatarFallback>
+                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 glass" align="end" forceMount>
-                <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
-                  </p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'admin' 
-                        ? 'bg-maersk-blue text-white' 
-                        : 'bg-maersk-light-blue text-maersk-navy'
-                    }`}>
-                      {user.role.toUpperCase()}
-                    </div>
-                  </div>
-                </div>
+                 <div className="flex flex-col space-y-1 p-2">
+                   <p className="text-sm font-medium leading-none">{profile?.name || user.email}</p>
+                   <p className="text-xs leading-none text-muted-foreground">
+                     {user.email}
+                   </p>
+                   <div className="flex items-center space-x-2 mt-2">
+                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                       profile?.role === 'admin' 
+                         ? 'bg-maersk-blue text-white' 
+                         : 'bg-maersk-light-blue text-maersk-navy'
+                     }`}>
+                       {(profile?.role || 'user').toUpperCase()}
+                     </div>
+                   </div>
+                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Confetti from 'react-confetti';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { useQuizStore } from '@/store/useQuizStore';
+import { useQuizInterface } from '@/hooks/useQuizInterface';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, 
@@ -14,41 +14,48 @@ import {
   ChevronLeft, 
   Flag, 
   Timer,
-  AlertCircle,
   CheckCircle2,
   X,
-  Zap
+  Zap,
+  Play
 } from 'lucide-react';
 
 const QuizInterface = () => {
-  const { quizId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { 
-    currentQuiz, 
-    currentQuestionIndex, 
-    answers, 
-    timeRemaining, 
+  const {
+    currentQuiz,
+    currentQuestion,
+    currentQuestionIndex,
+    answers,
+    timeRemaining,
     isQuizActive,
-    startQuiz, 
-    answerQuestion, 
-    nextQuestion, 
-    finishQuiz, 
-    setTimeRemaining 
-  } = useQuizStore();
+    isSubmitting,
+    isLastQuestion,
+    startQuiz,
+    answerQuestion,
+    nextQuestion,
+    previousQuestion,
+    finishQuiz,
+    formatTime,
+  } = useQuizInterface();
 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
-  useEffect(() => {
-    if (quizId && !isQuizActive) {
-      startQuiz(quizId);
+  // Update selected answer when question changes
+  React.useEffect(() => {
+    if (currentQuestion && answers[currentQuestionIndex] !== undefined && answers[currentQuestionIndex] !== -1) {
+      setSelectedAnswer(answers[currentQuestionIndex]);
+    } else {
+      setSelectedAnswer(null);
     }
-  }, [quizId, startQuiz, isQuizActive]);
+  }, [currentQuestionIndex, answers, currentQuestion]);
 
-  useEffect(() => {
+  // Window size effect for confetti
+  React.useEffect(() => {
     const updateWindowSize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     };
@@ -57,40 +64,21 @@ const QuizInterface = () => {
     return () => window.removeEventListener('resize', updateWindowSize);
   }, []);
 
-  useEffect(() => {
-    if (isQuizActive && timeRemaining > 0) {
-      const timer = setInterval(() => {
-        setTimeRemaining(timeRemaining - 1);
-      }, 1000);
-      return () => clearInterval(timer);
-    } else if (timeRemaining === 0 && isQuizActive) {
-      handleFinishQuiz();
-    }
-  }, [timeRemaining, isQuizActive, setTimeRemaining]);
-
-  useEffect(() => {
-    if (currentQuiz && answers[currentQuestionIndex] !== undefined) {
-      setSelectedAnswer(answers[currentQuestionIndex]);
-    } else {
-      setSelectedAnswer(null);
-    }
-  }, [currentQuestionIndex, answers, currentQuiz]);
-
   const handleAnswerSelect = (answerIndex: number) => {
     setSelectedAnswer(answerIndex);
     answerQuestion(answerIndex);
   };
 
   const handleNext = () => {
-    if (currentQuiz && currentQuestionIndex < currentQuiz.questions.length - 1) {
-      nextQuestion();
-    } else {
+    if (isLastQuestion) {
       handleFinishQuiz();
+    } else {
+      nextQuestion();
     }
   };
 
-  const handleFinishQuiz = () => {
-    finishQuiz();
+  const handleFinishQuiz = async () => {
+    await finishQuiz();
     setShowResults(true);
     
     const score = calculateScore();
@@ -100,11 +88,6 @@ const QuizInterface = () => {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 5000);
     }
-
-    toast({
-      title: "Quiz Completed!",
-      description: `You scored ${score}/${currentQuiz?.questions.length} (${Math.round(percentage)}%)`,
-    });
   };
 
   const calculateScore = () => {
@@ -118,28 +101,54 @@ const QuizInterface = () => {
     return score;
   };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const getTimeColor = () => {
     if (timeRemaining > 60) return 'text-green-600';
     if (timeRemaining > 30) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  if (!currentQuiz) {
+  // Show loading state
+  if (!currentQuiz && !showResults) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="glass-card p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Quiz Not Found</h2>
-          <p className="text-muted-foreground mb-4">The quiz you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate('/dashboard')}>
-            Back to Dashboard
-          </Button>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-maersk-blue"></div>
+      </div>
+    );
+  }
+
+  // Show quiz not started state
+  if (currentQuiz && !isQuizActive && !showResults) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <Card className="glass-card max-w-2xl w-full text-center">
+          <CardContent className="p-8">
+            <h1 className="font-heading text-3xl font-bold gradient-text mb-4">
+              {currentQuiz.title}
+            </h1>
+            <p className="text-muted-foreground text-lg mb-6">
+              {currentQuiz.description}
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="p-4 bg-background/50 rounded-xl">
+                <div className="text-2xl font-bold text-foreground">{currentQuiz.questions.length}</div>
+                <div className="text-sm text-muted-foreground">Questions</div>
+              </div>
+              <div className="p-4 bg-background/50 rounded-xl">
+                <div className="text-2xl font-bold text-foreground">{formatTime(currentQuiz.time_limit)}</div>
+                <div className="text-sm text-muted-foreground">Time Limit</div>
+              </div>
+              <div className="p-4 bg-background/50 rounded-xl">
+                <div className="text-2xl font-bold text-foreground">{currentQuiz.difficulty}</div>
+                <div className="text-sm text-muted-foreground">Difficulty</div>
+              </div>
+            </div>
+            
+            <Button onClick={startQuiz} className="btn-hero text-lg px-8 py-4">
+              <Play className="h-5 w-5 mr-2" />
+              Start Quiz
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );
@@ -182,79 +191,6 @@ const QuizInterface = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="glass-card text-center">
-              <CardContent className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-2">
-                  {score}/{currentQuiz.questions.length}
-                </div>
-                <p className="text-muted-foreground">Questions Correct</p>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card text-center">
-              <CardContent className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-2">
-                  {Math.round(percentage)}%
-                </div>
-                <p className="text-muted-foreground">Final Score</p>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card text-center">
-              <CardContent className="p-6">
-                <div className="text-3xl font-bold text-foreground mb-2">
-                  {formatTime(currentQuiz.timeLimit - timeRemaining)}
-                </div>
-                <p className="text-muted-foreground">Time Taken</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="glass-card mb-8">
-            <CardContent className="p-6">
-              <h3 className="font-heading text-xl font-bold mb-4">Question Review</h3>
-              <div className="space-y-4">
-                {currentQuiz.questions.map((question, index) => {
-                  const userAnswer = answers[index];
-                  const isCorrect = userAnswer === question.correctAnswer;
-                  
-                  return (
-                    <div key={question.id} className="p-4 bg-background/50 rounded-xl">
-                      <div className="flex items-start justify-between mb-3">
-                        <h4 className="font-medium text-foreground flex-1">
-                          {index + 1}. {question.question}
-                        </h4>
-                        {isCorrect ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 ml-3" />
-                        ) : (
-                          <X className="h-5 w-5 text-red-600 flex-shrink-0 ml-3" />
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-muted-foreground">Your answer:</span>
-                          <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>
-                            {userAnswer !== undefined ? question.options[userAnswer] : 'Not answered'}
-                          </span>
-                        </div>
-                        {!isCorrect && (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-muted-foreground">Correct answer:</span>
-                            <span className="text-green-600">
-                              {question.options[question.correctAnswer]}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="flex justify-center space-x-4">
             <Button 
               onClick={() => navigate('/dashboard')}
@@ -266,7 +202,7 @@ const QuizInterface = () => {
             <Button 
               onClick={() => {
                 setShowResults(false);
-                startQuiz(currentQuiz.id);
+                startQuiz();
               }}
               className="btn-hero"
             >
@@ -279,8 +215,16 @@ const QuizInterface = () => {
     );
   }
 
-  const currentQuestion = currentQuiz.questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / currentQuiz.questions.length) * 100;
+  // Active quiz interface
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-maersk-blue"></div>
+      </div>
+    );
+  }
+
+  const questionProgress = ((currentQuestionIndex + 1) / currentQuiz.questions.length) * 100;
 
   return (
     <div className="min-h-screen px-4 py-8">
@@ -315,7 +259,7 @@ const QuizInterface = () => {
             </div>
           </div>
           
-          <Progress value={progress} className="h-2" />
+          <Progress value={questionProgress} className="h-2" />
         </motion.div>
 
         {/* Question */}
@@ -372,11 +316,7 @@ const QuizInterface = () => {
         >
           <Button
             variant="outline"
-            onClick={() => {
-              if (currentQuestionIndex > 0) {
-                // Add previous question functionality if needed
-              }
-            }}
+            onClick={previousQuestion}
             disabled={currentQuestionIndex === 0}
             className="btn-glass"
           >
@@ -396,10 +336,10 @@ const QuizInterface = () => {
             
             <Button
               onClick={handleNext}
-              disabled={selectedAnswer === null}
+              disabled={selectedAnswer === null || isSubmitting}
               className="btn-hero"
             >
-              {currentQuestionIndex === currentQuiz.questions.length - 1 ? 'Finish' : 'Next'}
+              {isLastQuestion ? 'Finish' : 'Next'}
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           </div>

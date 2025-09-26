@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useQuizStore } from '@/store/useQuizStore';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Mail, 
   Lock, 
@@ -27,7 +27,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const { login, isLoading } = useQuizStore();
+  const { signIn, signUp, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -44,18 +44,26 @@ const Auth = () => {
     }
 
     try {
-      await login(email, password);
-      toast({
-        title: "Welcome!",
-        description: `Successfully ${isLogin ? 'signed in' : 'registered'}`,
-      });
-      navigate('/dashboard');
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (!error) {
+          toast({
+            title: "Welcome back!",
+            description: "Successfully signed in",
+          });
+          navigate('/dashboard');
+        }
+      } else {
+        const { error } = await signUp(email, password, name);
+        if (!error) {
+          toast({
+            title: "Account created!",
+            description: "Please check your email to verify your account",
+          });
+        }
+      }
     } catch (error) {
-      toast({
-        title: "Authentication Failed",
-        description: "Please check your credentials and try again",
-        variant: "destructive"
-      });
+      // Error handling is done in the auth hooks
     }
   };
 
@@ -183,9 +191,9 @@ const Auth = () => {
               <Button
                 type="submit"
                 className="w-full btn-hero"
-                disabled={isLoading}
+                disabled={loading}
               >
-                {isLoading ? (
+                {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     {isLogin ? 'Signing In...' : 'Creating Account...'}
